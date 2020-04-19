@@ -50,7 +50,11 @@
               <li v-for="item in cartList" :key="item.productId">
                 <div class="cart-tab-1">
                   <div class="cart-item-check">
-                    <a href="javascipt:;" class="checkbox-btn item-check-btn" :class="{ 'checked' : item.checked}">
+                    <a
+                      href="javascipt:;"
+                      class="checkbox-btn item-check-btn"
+                      :class="{ 'checked' : item.checked}"
+                      @click="editCart('checked', item)">
                       <svg class="icon icon-ok">
                         <use xlink:href="#icon-ok"></use>
                       </svg>
@@ -70,15 +74,15 @@
                   <div class="item-quantity">
                     <div class="select-self select-self-open">
                       <div class="select-self-area">
-                        <a class="input-sub">-</a>
+                        <a class="input-sub" @click="editCart('minus', item)">-</a>
                         <span class="select-ipt">{{ item.productNum }}</span>
-                        <a class="input-add">+</a>
+                        <a class="input-add" @click="editCart('add', item)">+</a>
                       </div>
                     </div>
                   </div>
                 </div>
                 <div class="cart-tab-4">
-                  <div class="item-price-total">￥{{ price }}元</div>
+                  <div class="item-price-total">{{ (item.productPrice * item.productNum) | currency }}</div>
                 </div>
                 <div class="cart-tab-5">
                   <div class="cart-item-opration">
@@ -151,6 +155,12 @@ export default {
       return productPrice + productNum
     }
   },
+  filters: {
+    currency (value) {
+      if (!value) return 0.00
+      return `￥${Math.floor(value * 100) / 100}元`
+    }
+  },
   methods: {
     initCart () {
       this.$http.get('/mock/cart.json').then((res) => {
@@ -160,6 +170,19 @@ export default {
         }
         this.cartList = data
       }).catch(err => err)
+    },
+    // 购物车物品添加/减少数量
+    editCart (type, item) {
+      if (type === 'minus') {
+        item.productNum--
+        if (item.productNum <= 1) {
+          item.productNum = 1
+        }
+      } else if (type === 'add') {
+        item.productNum++
+      } else {
+        item.checked = !item.checked
+      }
     }
   }
 }
