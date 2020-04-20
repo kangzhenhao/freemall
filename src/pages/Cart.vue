@@ -1,7 +1,8 @@
 <template>
   <div>
+    <!-- header组件 -->
     <nav-header />
-    <!-- 面包屑 -->
+    <!-- 面包屑组件 -->
     <breadcrumb navName="购物车" />
     <!-- 定义购物车页面图标 -->
     <svg style="position: absolute; width: 0; height: 0; overflow: hidden;" version="1.1"
@@ -47,7 +48,7 @@
               </ul>
             </div>
             <ul class="cart-item-list">
-              <li v-for="item in cartList" :key="item.productId">
+              <li v-for="item in cartList" :key="item.productI">
                 <div class="cart-tab-1">
                   <div class="cart-item-check">
                     <a
@@ -86,7 +87,7 @@
                 </div>
                 <div class="cart-tab-5">
                   <div class="cart-item-opration">
-                    <a href="javascript:;" class="item-edit-btn">
+                    <a href="javascript:;" class="item-edit-btn" @click="showDelCartItemModal(item)">
                       <svg class="icon icon-del">
                         <use xlink:href="#icon-del"></use>
                       </svg>
@@ -97,14 +98,15 @@
             </ul>
           </div>
         </div>
-        <div class="cart-foot-wrap">
+        <div class="cart-foot-wrap fixed">
           <div class="cart-foot-inner">
             <div class="cart-foot-l">
               <div class="item-all-check">
-                <a href="javascipt:;">
-                  <span class="checkbox-btn item-check-btn check">
+                <a href="javascipt:;"  @click="toggleCheckAll">
+                  <span class="checkbox-btn item-check-btn" :class="{'check': checkedAllFlag}">
                     <svg class="icon icon-ok">
-                      <use xlink:href="#icon-ok" /></svg>
+                      <use xlink:href="#icon-ok" />
+                    </svg>
                   </span>
                   <span>全选</span>
                 </a>
@@ -112,47 +114,82 @@
             </div>
             <div class="cart-foot-r">
               <div class="item-total">
-                总价: <span class="total-price">￥89.00元</span>
+                总价: <span class="total-price">{{totalPrice | currency}}</span>
               </div>
-              <div class="btn-wrap">
-                <a class="btn btn--red btn--dis">结算</a>
+              <div class="btn-wrap" @click="settlement">
+                <a class="btn btn--red" :class="{'btn--dis': !checkedCount}">结算</a>
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
+    <!-- footer组件 -->
     <nav-footer />
+    <!-- 弹框提示组件 -->
+    <modal :mdShow="modalConfirm" @close="closeMd">
+      <!-- 新插槽写法，3.0会放弃原来的slot写法 -->
+      <template v-slot:message>
+        <p>你确认要删除此条数据吗?</p>
+      </template>
+      <template v-slot:btnGroup>
+        <a class="btn btn--m" href="javascript:;" @click="delCartItem">确认</a>
+        <a class="btn btn--m btn--red" href="javascript:;" @click="closeMd">关闭</a>
+      </template>
+    </modal>
   </div>
 </template>
 
 <script>
-import navHeader from '../components/Header'
-import navFooter from '../components/Footer'
-// import Model from '../components/Modal'
-import breadcrumb from '../components/Breadcrumb'
+import navHeader from '../components/Header.vue'
+import navFooter from '../components/Footer.vue'
+import modal from '../components/Modal.vue'
+import breadcrumb from '../components/Breadcrumb.vue'
 
 
 export default {
   name: 'cart',
   data () {
     return {
-      cartList: []
+      cartList: [],
+      modalConfirm: false,
+      delItem: null
     }
   },
   components: {
     navHeader,
     navFooter,
-    breadcrumb
+    breadcrumb,
+    modal
   },
   mounted () {
     // 初始化购物车列表
     this.initCart()
   },
   computed: {
-    price () {
-      const { productPrice, productNum } = this.cartList
-      return productPrice + productNum
+    // 计算购物车列表是否全选
+    checkedAllFlag () {
+      // every方法：当购物车所有checked项都返回true才返回true
+      return this.cartList.every(item => {
+        return item.checked
+      })
+    },
+    // 计算总金额
+    totalPrice () {
+      let money = 0
+      this.cartList.forEach(item => {
+        if (item.checked) {
+          money += item.productPrice * item.productNum
+        }
+      })
+      return money
+    },
+    // 计算购物车是否有商品被选中
+    checkedCount () {
+      // some方法：当有某一项返回true才返回true
+      return this.cartList.some(item => {
+        return item.checked
+      })
     }
   },
   filters: {
@@ -162,14 +199,19 @@ export default {
     }
   },
   methods: {
-    initCart () {
-      this.$http.get('/mock/cart.json').then((res) => {
+    async initCart () {
+      /* this.$http.get('/mock/cart.json').then((res) => {
         const { data, code } = res.data
         if (code !== 0) {
           return console.log('获取购物车列表失败')
         }
         this.cartList = data
-      }).catch(err => err)
+      }).catch(err => err) */
+      const { data: res } = await this.$http.get('/mock/cart.json')
+      if (res.code !== 0) {
+        return console.log('获取购物车列表失败')
+      }
+      this.cartList = res.data
     },
     // 购物车物品添加/减少数量
     editCart (type, item) {
@@ -181,8 +223,38 @@ export default {
       } else if (type === 'add') {
         item.productNum++
       } else {
-        item.checked = !item.checked
+        item.checked = !item.checked // 选中框选中与未选中切换
       }
+    },
+    // 弹出删除购物车项
+    showDelCartItemModal (item) {
+      this.delItem = item
+      this.modalConfirm = true
+    },
+    // 关闭弹框
+    closeMd () {
+      this.modalConfirm = false
+    },
+    // 删除购物车项
+    delCartItem () {
+      const { delItem } = this
+      this.cartList.forEach((item, index) => {
+        if (item.productId === delItem.productId) {
+          this.cartList.splice(index, 1)
+          this.modalConfirm = false
+        }
+      })
+    },
+    // 全选 / 反选
+    toggleCheckAll () {
+      const flag = !this.checkedAllFlag
+      this.cartList.forEach(item => {
+        item.checked = flag
+      })
+    },
+    // 跳转到结算页面
+    settlement () {
+      this.$router.push('/address')
     }
   }
 }
