@@ -130,7 +130,7 @@
     <modal :mdShow="modalConfirm" @close="closeMd">
       <!-- 新插槽写法，3.0会放弃原来的slot写法 -->
       <template v-slot:message>
-        <p>你确认要删除此条数据吗?</p>
+        <p>你确认要删除购物车此项商品吗?</p>
       </template>
       <template v-slot:btnGroup>
         <a class="btn btn--m" href="javascript:;" @click="delCartItem">确认</a>
